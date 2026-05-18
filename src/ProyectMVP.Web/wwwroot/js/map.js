@@ -1,6 +1,13 @@
 let map;
 let markersLayer;
 let routeLayer;
+let hotspotsLayer;
+
+const HOTSPOT_COLORS = {
+  theft: { stroke: "#9d0208", fill: "#e5383b" },
+  sighting: { stroke: "#0d3b66", fill: "#2a9d8f" },
+  potential_match: { stroke: "#c1121f", fill: "#ff758f" }
+};
 
 function initMap() {
   map = L.map("map").setView([6.2442, -75.5812], 12);
@@ -11,6 +18,7 @@ function initMap() {
 
   markersLayer = L.layerGroup().addTo(map);
   routeLayer = L.layerGroup().addTo(map);
+  hotspotsLayer = L.layerGroup().addTo(map);
 }
 
 function setStatus(message, isError = false) {
@@ -33,6 +41,69 @@ function clearResults() {
 }
 
 window.clearMapResults = clearResults;
+
+function hotspotsEnabled() {
+  const el = document.getElementById("hotspots-toggle");
+  return el && el.checked;
+}
+
+function clearHotspots() {
+  hotspotsLayer.clearLayers();
+}
+
+function renderHotspots(hotspots) {
+  clearHotspots();
+  if (!hotspotsEnabled() || !hotspots?.length) {
+    return;
+  }
+
+  hotspots.forEach((h) => {
+    const lat = Number(h.latitude);
+    const lng = Number(h.longitude);
+    const colors = HOTSPOT_COLORS[h.category] || HOTSPOT_COLORS.sighting;
+    const radius = 14 + Number(h.intensity || 0) * 28;
+
+    L.circle([lat, lng], {
+      radius,
+      color: colors.stroke,
+      fillColor: colors.fill,
+      fillOpacity: 0.25 + Number(h.intensity || 0) * 0.35,
+      weight: 2
+    })
+      .bindPopup(
+        `<strong>${h.label}</strong><br/>${h.count} evento(s)<br/>Intensidad: ${h.intensity}<br/><em>${h.category}</em>`
+      )
+      .addTo(hotspotsLayer);
+  });
+}
+
+async function loadHotspots() {
+  if (!window.ProyectMvpAuth.isLoggedIn() || !hotspotsEnabled()) {
+    clearHotspots();
+    return;
+  }
+
+  try {
+    const response = await window.ProyectMvpAuth.apiFetch("/analytics/hotspots?category=all");
+    if (!response.ok) {
+      return;
+    }
+    const data = await response.json();
+    renderHotspots(data.hotspots || []);
+  } catch (err) {
+    console.warn("Hotspots no disponibles", err);
+  }
+}
+
+window.loadHotspots = loadHotspots;
+
+document.getElementById("hotspots-toggle")?.addEventListener("change", () => {
+  if (hotspotsEnabled()) {
+    loadHotspots();
+  } else {
+    clearHotspots();
+  }
+});
 
 function renderStolenReports(plate, reports) {
   const panel = document.getElementById("stolen-reports-panel");
@@ -175,6 +246,7 @@ async function searchPlate(plate) {
 
 window.onPoliceLoggedIn = (plate) => {
   document.getElementById("plate-input").value = plate;
+  loadHotspots();
   searchPlate(plate);
 };
 
@@ -188,5 +260,6 @@ initMap();
 const defaultPlate = new URLSearchParams(window.location.search).get("plate") || "ABC123";
 document.getElementById("plate-input").value = defaultPlate;
 if (window.ProyectMvpAuth.isLoggedIn()) {
+  loadHotspots();
   searchPlate(defaultPlate);
 }

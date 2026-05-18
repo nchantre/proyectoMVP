@@ -24,6 +24,14 @@ Authorization: Bearer {{token}}
 GET {{ProyectMVP.Api_HostAddress}}/api/v1/plates/ABC123/stolen-reports
 Authorization: Bearer {{token}}
 
+### Hotspots / tendencias (mapa de calor, últimos 30 días por defecto)
+GET {{ProyectMVP.Api_HostAddress}}/api/v1/analytics/hotspots?category=all
+Authorization: Bearer {{token}}
+
+### Hotspots — solo posibles hurtos
+GET {{ProyectMVP.Api_HostAddress}}/api/v1/analytics/hotspots?category=potential_match
+Authorization: Bearer {{token}}
+
 ### Login admin importador
 # @name adminLogin
 POST {{ProyectMVP.Api_HostAddress}}/api/v1/auth/login

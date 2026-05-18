@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<ISightingRepository, SqlSightingRepository>();
         services.AddScoped<IStolenVehicleReportRepository, SqlStolenVehicleReportRepository>();
         services.AddScoped<IStolenVehicleImportRepository, SqlStolenVehicleImportRepository>();
+        services.AddScoped<IAnalyticsRepository, SqlAnalyticsRepository>();
         services.AddScoped<IStolenVehicleSource, JsonStolenVehicleSource>();
         services.AddScoped<IStolenVehicleSource, CsvStolenVehicleSource>();
         services.AddScoped<ISightingRegistrationRepository, SqlSightingRegistrationRepository>();

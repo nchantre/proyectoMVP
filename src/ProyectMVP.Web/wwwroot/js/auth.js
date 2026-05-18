@@ -95,6 +95,7 @@ function updateAuthUi() {
   document.getElementById("login-panel").hidden = loggedIn;
   document.getElementById("user-panel").hidden = !loggedIn;
   document.getElementById("search-form").hidden = !loggedIn;
+  document.getElementById("hotspots-toggle-wrap").hidden = !loggedIn;
 
   if (loggedIn && user) {
     document.getElementById("user-label").textContent =

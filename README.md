@@ -90,6 +90,17 @@ Tras importar, los avistamientos existentes de esa placa se marcan con `IsPotent
 
 Adaptadores en `Infrastructure/Import/`: `JsonStolenVehicleSource`, `CsvStolenVehicleSource`.
 
+## Paso 7 — Analytics / hotspots
+
+| Recurso | Detalle |
+|---------|---------|
+| Hotspots | `GET /api/v1/analytics/hotspots` — JWT policía, solo su país |
+| Query | `category` = `all` \| `theft` \| `sighting` \| `potential_match` |
+| Query | `from` / `to` (UTC, opcional; default últimos 30 días) |
+| Web | Checkbox **Mapa de calor (tendencias)** en http://localhost:5103 |
+
+Cada hotspot incluye `latitude`, `longitude`, `count`, `intensity` (0–1) para capas de calor o Power BI.
+
 ## Pruebas rápidas
 
 - Swagger: http://localhost:5290/swagger (botón **Authorize** con el JWT)

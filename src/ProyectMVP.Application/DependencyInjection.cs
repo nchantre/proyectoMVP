@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using ProyectMVP.Application.Analytics.Hotspots;
 using ProyectMVP.Application.Auth.Login;
 using ProyectMVP.Application.Sightings.RegisterSighting;
 using ProyectMVP.Application.Sightings.SearchPlate;
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<LoginHandler>();
         services.AddScoped<GetStolenReportsHandler>();
         services.AddScoped<ImportStolenReportsHandler>();
+        services.AddScoped<GetHotspotsHandler>();
         return services;
     }
 }
