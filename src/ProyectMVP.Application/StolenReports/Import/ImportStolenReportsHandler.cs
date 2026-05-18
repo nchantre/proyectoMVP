@@ -45,7 +45,16 @@ public sealed class ImportStolenReportsHandler
 
         if (parsedRecords.Count == 0)
         {
-            return new ImportStolenReportsResult(0, 0, 0, 0, ["No hay registros para importar."]);
+            return new ImportStolenReportsResult(
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                "No hay registros para importar.",
+                [],
+                []);
         }
 
         return await _importRepository.ImportBatchAsync(

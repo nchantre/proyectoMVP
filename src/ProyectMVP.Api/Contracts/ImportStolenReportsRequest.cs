@@ -1,17 +1,25 @@
+using System.ComponentModel;
+
 namespace ProyectMVP.Api.Contracts;
 
+/// <summary>Solicitud de importación de reportes de hurto.</summary>
 public sealed class ImportStolenReportsRequest
 {
-    /// <summary>json (records en body) o csv (payload texto).</summary>
+    /// <summary>json = usar <see cref="Records"/>; csv = usar <see cref="Payload"/>.</summary>
+    [DefaultValue("json")]
     public string Format { get; set; } = "json";
 
+    /// <summary>Código ISO del país (debe existir en BD), ej. CO.</summary>
+    [DefaultValue("CO")]
     public string CountryIsoCode { get; set; } = "CO";
 
+    /// <summary>Sistema origen del lote, ej. POLICIA_CO_BATCH.</summary>
     public string SourceSystem { get; set; } = string.Empty;
 
-    /// <summary>Contenido CSV cuando format=csv.</summary>
+    /// <summary>Texto CSV completo cuando format=csv.</summary>
     public string? Payload { get; set; }
 
+    /// <summary>Filas a importar cuando format=json.</summary>
     public List<ImportStolenReportItem>? Records { get; set; }
 }
 

@@ -1,10 +1,12 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Reflection;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using ProyectMVP.Application;
+using ProyectMVP.Application.StolenReports.Import;
 using ProyectMVP.Identity;
 using ProyectMVP.Identity.Security;
 using ProyectMVP.Infrastructure;
@@ -15,7 +17,27 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "ProyectMVP API", Version = "v1" });
+    options.EnableAnnotations();
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "ProyectMVP API",
+        Version = "v1",
+        Description = "MVP anti-hurto Ceiba. Importación: admin/demo. Consultas policía: policia/demo."
+    });
+
+    var apiXml = Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml");
+    if (File.Exists(apiXml))
+    {
+        options.IncludeXmlComments(apiXml);
+    }
+
+    var applicationXml = Path.Combine(
+        Path.GetDirectoryName(typeof(ImportStolenReportsResult).Assembly.Location)!,
+        "ProyectMVP.Application.xml");
+    if (File.Exists(applicationXml))
+    {
+        options.IncludeXmlComments(applicationXml);
+    }
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT. Importación: login admin/demo. Consultas policía: policia/demo.",
@@ -75,15 +97,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     return Task.CompletedTask;
                 }
 
-                IEnumerable<string> roleValues = context.SecurityToken switch
-                {
-                    JsonWebToken jwt => jwt.Claims
+                IEnumerable<string> roleValues = context.SecurityToken is JwtSecurityToken jwt
+                    ? jwt.Claims
                         .Where(c => c.Type is "roles" or "role")
-                        .Select(c => c.Value),
-                    _ => context.Principal.FindAll("roles")
-                        .Concat(context.Principal.FindAll("role"))
                         .Select(c => c.Value)
-                };
+                    : context.Principal.FindAll("roles")
+                        .Concat(context.Principal.FindAll("role"))
+                        .Select(c => c.Value);
 
                 foreach (var role in roleValues.Where(r => !string.IsNullOrWhiteSpace(r)))
                 {

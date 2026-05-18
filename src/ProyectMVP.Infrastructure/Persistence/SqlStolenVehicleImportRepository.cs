@@ -30,13 +30,23 @@ public sealed class SqlStolenVehicleImportRepository : IStolenVehicleImportRepos
 
         if (country is null)
         {
-            return new ImportStolenReportsResult(0, 0, 0, 0, [$"País '{countryIsoCode}' no existe en el sistema."]);
+            return BuildResult(
+                records.Count,
+                0,
+                0,
+                0,
+                1,
+                0,
+                [],
+                [$"País '{countryIsoCode}' no existe. Ejecute el seed SQL o cree el país antes de importar."]);
         }
 
         var created = 0;
         var updated = 0;
         var skipped = 0;
-        var errors = new List<string>();
+        var errorCount = 0;
+        var items = new List<ImportStolenReportItemResult>();
+        var globalErrors = new List<string>();
         var affectedVehicleIds = new HashSet<long>();
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -47,7 +57,11 @@ public sealed class SqlStolenVehicleImportRepository : IStolenVehicleImportRepos
             {
                 if (!ValidStatuses.Contains(record.Status))
                 {
-                    errors.Add($"{record.Plate}: status '{record.Status}' no válido.");
+                    errorCount++;
+                    items.Add(new ImportStolenReportItemResult(
+                        record.Plate,
+                        ImportOutcomes.Error,
+                        $"Status '{record.Status}' no válido. Use ACTIVE, RECOVERED o CLOSED."));
                     continue;
                 }
 
@@ -57,6 +71,7 @@ public sealed class SqlStolenVehicleImportRepository : IStolenVehicleImportRepos
                 var cityId = await ResolveCityIdAsync(country.CountryId, record.CityName, cancellationToken);
 
                 var existingReport = await _dbContext.StolenVehicleReports
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(
                         r => r.VehicleId == vehicle.VehicleId
                              && r.CountryId == country.CountryId
@@ -67,9 +82,16 @@ public sealed class SqlStolenVehicleImportRepository : IStolenVehicleImportRepos
                 if (existingReport is not null)
                 {
                     skipped++;
+                    items.Add(new ImportStolenReportItemResult(
+                        record.Plate,
+                        ImportOutcomes.SkippedDuplicate,
+                        $"Duplicado: ya existe reporte #{existingReport.StolenVehicleReportId} " +
+                        $"(misma placa, fecha de hurto y documento del propietario).",
+                        existingReport.StolenVehicleReportId));
                     continue;
                 }
 
+                long? closedReportId = null;
                 var activeReport = await _dbContext.StolenVehicleReports
                     .FirstOrDefaultAsync(
                         r => r.VehicleId == vehicle.VehicleId
@@ -81,10 +103,11 @@ public sealed class SqlStolenVehicleImportRepository : IStolenVehicleImportRepos
                 {
                     activeReport.Status = "CLOSED";
                     activeReport.UpdatedAtUtc = DateTime.UtcNow;
+                    closedReportId = activeReport.StolenVehicleReportId;
                     updated++;
                 }
 
-                _dbContext.StolenVehicleReports.Add(new StolenVehicleReportEntity
+                var newReport = new StolenVehicleReportEntity
                 {
                     VehicleId = vehicle.VehicleId,
                     CountryId = country.CountryId,
@@ -95,23 +118,73 @@ public sealed class SqlStolenVehicleImportRepository : IStolenVehicleImportRepos
                     SourceSystem = sourceSystem,
                     CreatedAtUtc = DateTime.UtcNow,
                     UpdatedAtUtc = DateTime.UtcNow
-                });
+                };
+
+                _dbContext.StolenVehicleReports.Add(newReport);
+                await _dbContext.SaveChangesAsync(cancellationToken);
 
                 created++;
+                var message = closedReportId is null
+                    ? $"Reporte de hurto creado (status {record.Status})."
+                    : $"Reporte creado (status {record.Status}). Hurto ACTIVE anterior #{closedReportId} cerrado como CLOSED.";
+
+                items.Add(new ImportStolenReportItemResult(
+                    record.Plate,
+                    closedReportId is null ? ImportOutcomes.Created : ImportOutcomes.UpdatedPreviousActive,
+                    message,
+                    newReport.StolenVehicleReportId));
             }
             catch (Exception ex)
             {
-                errors.Add($"{record.Plate}: {ex.Message}");
+                errorCount++;
+                items.Add(new ImportStolenReportItemResult(
+                    record.Plate,
+                    ImportOutcomes.Error,
+                    ex.Message));
             }
         }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
 
         var sightingsFlagged = await RefreshPotentialMatchesAsync(affectedVehicleIds, cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
 
-        return new ImportStolenReportsResult(created, updated, skipped, sightingsFlagged, errors);
+        return BuildResult(
+            records.Count,
+            created,
+            updated,
+            skipped,
+            errorCount,
+            sightingsFlagged,
+            items,
+            globalErrors);
+    }
+
+    private static ImportStolenReportsResult BuildResult(
+        int totalReceived,
+        int created,
+        int updated,
+        int skipped,
+        int errorCount,
+        int sightingsFlagged,
+        IReadOnlyList<ImportStolenReportItemResult> items,
+        IReadOnlyList<string> globalErrors)
+    {
+        var summary = globalErrors.Count > 0
+            ? string.Join(" ", globalErrors)
+            : $"Procesados {totalReceived} registro(s): {created} creado(s), {updated} con hurto ACTIVE previo cerrado, " +
+              $"{skipped} omitido(s) por duplicado, {errorCount} error(es). " +
+              $"{sightingsFlagged} avistamiento(s) actualizados como posible hurto.";
+
+        return new ImportStolenReportsResult(
+            totalReceived,
+            created,
+            updated,
+            skipped,
+            errorCount,
+            sightingsFlagged,
+            summary,
+            items,
+            globalErrors);
     }
 
     private async Task<VehicleEntity> UpsertVehicleAsync(
