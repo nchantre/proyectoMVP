@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ProyectMVP — Mapa de avistamientos</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>Consulta de matrícula — Policía</h1>
+    <p class="subtitle">Avistamientos y reportes de hurto (solo su país)</p>
+
+    <div id="login-panel" class="login-panel">
+      <form id="login-form" class="login-form">
+        <input id="username-input" type="text" placeholder="Usuario" value="policia" required autocomplete="username" />
+        <input id="password-input" type="password" placeholder="Contraseña" value="demo" required autocomplete="current-password" />
+        <button type="submit">Ingresar</button>
+      </form>
+      <p id="auth-status" class="auth-status" role="status"></p>
+      <p class="hint">Demo: usuario <strong>policia</strong> / contraseña <strong>demo</strong></p>
+    </div>
+
+    <div id="user-panel" class="user-panel" hidden>
+      <span id="user-label"></span>
+      <button type="button" id="logout-btn" class="logout-btn">Salir</button>
+    </div>
+
+    <form id="search-form" class="search-bar" hidden>
+      <input id="plate-input" type="text" placeholder="Ej: ABC123" maxlength="20" required />
+      <button type="submit">Buscar</button>
+    </form>
+    <p id="status" class="status" role="status"></p>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <section id="stolen-reports-panel" class="stolen-panel" hidden>
+        <h2>Reportes de hurto</h2>
+        <ul id="stolen-reports-list"></ul>
+      </section>
+      <section id="timeline" class="timeline">
+        <h2>Avistamientos</h2>
+        <ul id="events-list"></ul>
+      </section>
+    </aside>
+    <div id="map" class="map" aria-label="Mapa de avistamientos"></div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/map.js"></script>
+</body>
+</html>
