@@ -41,7 +41,8 @@
   <main class="layout">
     <aside class="sidebar">
       <section id="stolen-reports-panel" class="stolen-panel" hidden>
-        <h2>Reportes de hurto</h2>
+        <h2 id="stolen-reports-title">Reporte de hurto</h2>
+        <p id="stolen-reports-hint" class="stolen-hint">Denuncia registrada en el sistema central</p>
         <ul id="stolen-reports-list"></ul>
       </section>
       <section id="timeline" class="timeline">
@@ -53,7 +54,9 @@
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous"></script>
   <script src="/js/auth.js"></script>
+  <script src="/js/report-pdf.js"></script>
   <script src="/js/map.js"></script>
 </body>
 </html>

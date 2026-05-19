@@ -148,16 +148,24 @@ body {
 
 .stolen-panel {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #dde3ea;
-  background: #fff8f0;
-  max-height: 40%;
+  border-bottom: 3px solid #9d0208;
+  background: linear-gradient(180deg, #fff5f5 0%, #fffaf5 100%);
+  flex-shrink: 0;
   overflow-y: auto;
+  max-height: 45%;
 }
 
 .stolen-panel h2 {
-  margin: 0 0 0.5rem;
-  font-size: 0.95rem;
+  margin: 0;
+  font-size: 1rem;
   color: #9d0208;
+  font-weight: 700;
+}
+
+.stolen-hint {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 0.75rem;
+  color: #666;
 }
 
 #stolen-reports-list {
@@ -167,9 +175,38 @@ body {
 }
 
 .stolen-item {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #f0e6dc;
+  padding: 0;
+  border-bottom: none;
   font-size: 0.82rem;
+}
+
+.stolen-card {
+  background: #fff;
+  border: 2px solid #c1121f;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  box-shadow: 0 2px 6px rgba(157, 2, 8, 0.12);
+}
+
+.stolen-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px dashed #e8c4c4;
+}
+
+.stolen-plate {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #0d3b66;
+}
+
+.stolen-report-id {
+  font-size: 0.7rem;
+  color: #888;
 }
 
 .stolen-item span {
@@ -187,6 +224,58 @@ body {
 .stolen-vehicle,
 .stolen-source {
   color: #444;
+}
+
+.stolen-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.stolen-map-btn,
+.stolen-pdf-btn {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.stolen-map-btn {
+  color: #fff;
+  background: #9d0208;
+}
+
+.stolen-map-btn:hover {
+  background: #c1121f;
+}
+
+.stolen-pdf-btn {
+  color: #0d3b66;
+  background: #fff;
+  border: 1px solid #0d3b66;
+}
+
+.stolen-pdf-btn:hover {
+  background: #e8f4f8;
+}
+
+#stolen-reports-list .stolen-item.active .stolen-card {
+  box-shadow: 0 0 0 2px #e76f51;
+}
+
+.stolen-empty-msg {
+  color: #666;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+#events-list .stolen-empty {
+  list-style: none;
+  padding: 0.5rem 0;
+  border: none;
 }
 
 .timeline {
@@ -241,6 +330,35 @@ body {
 .map {
   width: 100%;
   height: 100%;
+}
+
+.theft-marker-icon {
+  background: transparent;
+  border: none;
+}
+
+.theft-marker-pin {
+  display: inline-block;
+  background: #9d0208;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  animation: theft-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes theft-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
 }
 
 .match-badge {

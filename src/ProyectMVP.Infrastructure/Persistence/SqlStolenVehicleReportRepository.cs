@@ -15,7 +15,7 @@ public sealed class SqlStolenVehicleReportRepository : IStolenVehicleReportRepos
 
     public async Task<IReadOnlyList<StolenReportDto>> GetByPlateAsync(
         string plate,
-        int countryId,
+        string countryIsoCode,
         CancellationToken cancellationToken = default)
     {
         var query =
@@ -24,7 +24,7 @@ public sealed class SqlStolenVehicleReportRepository : IStolenVehicleReportRepos
             join country in _dbContext.Countries.AsNoTracking() on report.CountryId equals country.CountryId
             join city in _dbContext.Cities.AsNoTracking() on report.CityId equals city.CityId into cityGroup
             from city in cityGroup.DefaultIfEmpty()
-            where vehicle.Plate == plate && report.CountryId == countryId
+            where vehicle.Plate == plate && country.IsoCode == countryIsoCode
             orderby report.TheftDateUtc descending
             select new StolenReportDto(
                 report.StolenVehicleReportId,

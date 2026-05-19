@@ -6,6 +6,6 @@ public interface IStolenVehicleReportRepository
 {
     Task<IReadOnlyList<StolenReportDto>> GetByPlateAsync(
         string plate,
-        int countryId,
+        string countryIsoCode,
         CancellationToken cancellationToken = default);
 }

@@ -13,7 +13,7 @@ public sealed class GetStolenReportsHandler
 
     public async Task<GetStolenReportsResultDto> HandleAsync(
         string plate,
-        int countryId,
+        string countryIsoCode,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(plate))
@@ -21,13 +21,16 @@ public sealed class GetStolenReportsHandler
             throw new ArgumentException("La matrícula es obligatoria.", nameof(plate));
         }
 
-        if (countryId <= 0)
+        if (string.IsNullOrWhiteSpace(countryIsoCode))
         {
-            throw new ArgumentException("El país del usuario no es válido.", nameof(countryId));
+            throw new ArgumentException("El país del usuario no es válido.", nameof(countryIsoCode));
         }
 
         var normalizedPlate = plate.Trim().ToUpperInvariant();
-        var reports = await _repository.GetByPlateAsync(normalizedPlate, countryId, cancellationToken);
+        var reports = await _repository.GetByPlateAsync(
+            normalizedPlate,
+            countryIsoCode.Trim().ToUpperInvariant(),
+            cancellationToken);
         return new GetStolenReportsResultDto(normalizedPlate, reports);
     }
 }

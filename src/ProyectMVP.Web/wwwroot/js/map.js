@@ -2,6 +2,9 @@ let map;
 let markersLayer;
 let routeLayer;
 let hotspotsLayer;
+let theftReportLayer;
+let theftReportMarker;
+let lastSearchContext = { plate: "", sightings: [] };
 
 const HOTSPOT_COLORS = {
   theft: { stroke: "#9d0208", fill: "#e5383b" },
@@ -19,6 +22,7 @@ function initMap() {
   markersLayer = L.layerGroup().addTo(map);
   routeLayer = L.layerGroup().addTo(map);
   hotspotsLayer = L.layerGroup().addTo(map);
+  theftReportLayer = L.layerGroup().addTo(map);
 }
 
 function setStatus(message, isError = false) {
@@ -35,6 +39,7 @@ function formatDateTime(iso) {
 function clearResults() {
   markersLayer.clearLayers();
   routeLayer.clearLayers();
+  theftReportLayer.clearLayers();
   document.getElementById("events-list").innerHTML = "";
   document.getElementById("stolen-reports-list").innerHTML = "";
   document.getElementById("stolen-reports-panel").hidden = true;
@@ -105,41 +110,151 @@ document.getElementById("hotspots-toggle")?.addEventListener("change", () => {
   }
 });
 
-function renderStolenReports(plate, reports) {
+function renderStolenReports(plate, reports, errorMessage) {
   const panel = document.getElementById("stolen-reports-panel");
   const list = document.getElementById("stolen-reports-list");
   list.innerHTML = "";
+  panel.hidden = false;
 
-  if (!reports || reports.length === 0) {
-    panel.hidden = true;
+  if (errorMessage) {
+    const li = document.createElement("li");
+    li.className = "stolen-item stolen-empty";
+    li.innerHTML = `<span class="stolen-empty-msg">${errorMessage}</span>`;
+    list.appendChild(li);
     return;
   }
 
-  panel.hidden = false;
+  if (!reports || reports.length === 0) {
+    const li = document.createElement("li");
+    li.className = "stolen-item stolen-empty";
+    li.innerHTML = `<span class="stolen-empty-msg">Sin reportes de hurto para <strong>${plate}</strong> en su país.</span>`;
+    list.appendChild(li);
+    return;
+  }
+
+  const titleEl = document.getElementById("stolen-reports-title");
+  if (titleEl) {
+    titleEl.textContent = reports.length === 1 ? "Reporte de hurto" : `Reportes de hurto (${reports.length})`;
+  }
+
   reports.forEach((r) => {
     const li = document.createElement("li");
     li.className = `stolen-item status-${(r.status || "").toLowerCase()}`;
     li.innerHTML = `
-      <span class="stolen-status">${r.status}</span>
-      <span class="stolen-date">Hurto: ${formatDateTime(r.theftDateUtc)}</span>
-      <span class="stolen-doc">Doc. propietario: ${r.ownerDocument}</span>
-      <span class="stolen-place">${r.city ?? "—"}, ${r.country}</span>
-      ${r.brand ? `<span class="stolen-vehicle">${r.brand} ${r.vehicleLine ?? ""} · ${r.color ?? ""} ${r.modelYear ?? ""}</span>` : ""}
-      ${r.sourceSystem ? `<span class="stolen-source">Fuente: ${r.sourceSystem}</span>` : ""}
+      <article class="stolen-card">
+        <div class="stolen-card-header">
+          <span class="stolen-plate">${r.plate || plate}</span>
+          <span class="stolen-report-id">#${r.stolenVehicleReportId}</span>
+        </div>
+        <span class="stolen-status">Estado: ${r.status}</span>
+        <span class="stolen-date"><strong>Fecha hurto:</strong> ${formatDateTime(r.theftDateUtc)}</span>
+        <span class="stolen-doc"><strong>Propietario:</strong> ${r.ownerDocument}</span>
+        <span class="stolen-place"><strong>Lugar:</strong> ${r.city ?? "—"}, ${r.country}</span>
+        ${r.brand ? `<span class="stolen-vehicle"><strong>Vehículo:</strong> ${r.brand} ${r.vehicleLine ?? ""} · ${r.color ?? ""} · ${r.modelYear ?? ""}</span>` : ""}
+        ${r.sourceSystem ? `<span class="stolen-source"><strong>Fuente:</strong> ${r.sourceSystem}</span>` : ""}
+        <div class="stolen-card-actions">
+          <button type="button" class="stolen-map-btn">Ver en mapa</button>
+          <button type="button" class="stolen-pdf-btn">Descargar PDF</button>
+        </div>
+      </article>
     `;
+    li.querySelector(".stolen-map-btn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.focusTheftReportOnMap?.();
+    });
+    li.querySelector(".stolen-pdf-btn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.ProyectMvpReportPdf?.download(r, {
+        plate: plate || r.plate,
+        sightings: lastSearchContext.sightings,
+        user: window.ProyectMvpAuth.getUser()
+      });
+    });
+    li.addEventListener("click", () => {
+      document.querySelectorAll("#stolen-reports-list .stolen-item").forEach((el) => el.classList.remove("active"));
+      li.classList.add("active");
+      window.focusTheftReportOnMap?.();
+    });
     list.appendChild(li);
   });
+
+  return reports;
 }
 
-async function loadStolenReports(plate) {
-  const response = await window.ProyectMvpAuth.apiFetch(
-    `/plates/${encodeURIComponent(plate)}/stolen-reports`
-  );
-  if (!response.ok) {
-    throw new Error(`Reportes de hurto: error ${response.status}`);
+function theftMarkerPopupHtml(r) {
+  return `
+    <strong>Reporte de hurto #${r.stolenVehicleReportId}</strong><br/>
+    Placa: <strong>${r.plate}</strong><br/>
+    Estado: <strong>${r.status}</strong><br/>
+    ${r.city ?? ""}, ${r.country}<br/>
+    Fecha hurto: ${formatDateTime(r.theftDateUtc)}<br/>
+    ${r.brand ? `${r.brand} ${r.vehicleLine ?? ""} · ${r.color ?? ""} · ${r.modelYear ?? ""}` : ""}
+  `;
+}
+
+function showTheftOnMap(reports, sightings) {
+  theftReportLayer.clearLayers();
+  theftReportMarker = null;
+  if (!reports?.length) {
+    return;
   }
-  const data = await response.json();
-  renderStolenReports(plate, data.reports || []);
+
+  let lat;
+  let lng;
+  if (sightings?.length) {
+    lat = sightings.reduce((s, x) => s + Number(x.latitude), 0) / sightings.length;
+    lng = sightings.reduce((s, x) => s + Number(x.longitude), 0) / sightings.length;
+    lat += 0.004;
+  } else {
+    lat = 6.2442;
+    lng = -75.5812;
+  }
+
+  const r = reports[0];
+  const icon = L.divIcon({
+    className: "theft-marker-icon",
+    html: '<div class="theft-marker-pin">HURTO</div>',
+    iconSize: [56, 28],
+    iconAnchor: [28, 14]
+  });
+
+  theftReportMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 })
+    .bindPopup(theftMarkerPopupHtml(r))
+    .addTo(theftReportLayer);
+}
+
+window.focusTheftReportOnMap = () => {
+  if (!theftReportMarker) {
+    return;
+  }
+  const latLng = theftReportMarker.getLatLng();
+  map.setView(latLng, Math.max(map.getZoom(), 14));
+  theftReportMarker.openPopup();
+};
+
+async function loadStolenReports(plate) {
+  try {
+    const response = await window.ProyectMvpAuth.apiFetch(
+      `/plates/${encodeURIComponent(plate)}/stolen-reports`
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      renderStolenReports(
+        plate,
+        [],
+        err.message || `No se pudieron cargar reportes (HTTP ${response.status}). ¿Sesión activa?`
+      );
+      return [];
+    }
+    const data = await response.json();
+    const reports = data.reports || [];
+    renderStolenReports(plate, reports);
+    return reports;
+  } catch (err) {
+    console.error(err);
+    renderStolenReports(plate, [], "Error de conexión al cargar reportes de hurto.");
+    return [];
+  }
 }
 
 function renderSightings(plate, sightings) {
@@ -208,12 +323,14 @@ async function searchPlate(plate) {
 
   setStatus(`Buscando ${normalized}...`);
   clearResults();
+  lastSearchContext = { plate: normalized, sightings: [] };
 
   try {
-    const [sightingsResponse, stolenResponse] = await Promise.all([
-      window.ProyectMvpAuth.apiFetch(`/plates/${encodeURIComponent(normalized)}/sightings`),
-      window.ProyectMvpAuth.apiFetch(`/plates/${encodeURIComponent(normalized)}/stolen-reports`)
-    ]);
+    const stolenReports = await loadStolenReports(normalized);
+
+    const sightingsResponse = await window.ProyectMvpAuth.apiFetch(
+      `/plates/${encodeURIComponent(normalized)}/sightings`
+    );
 
     if (!sightingsResponse.ok) {
       throw new Error(`Avistamientos: error ${sightingsResponse.status}`);
@@ -224,20 +341,23 @@ async function searchPlate(plate) {
       (a, b) => new Date(a.seenAtUtc) - new Date(b.seenAtUtc)
     );
 
-    if (stolenResponse.ok) {
-      const stolenData = await stolenResponse.json();
-      renderStolenReports(normalized, stolenData.reports || []);
+    if (sightings.length > 0) {
+      renderSightings(normalized, sightings);
+    } else {
+      document.getElementById("events-list").innerHTML =
+        '<li class="stolen-empty"><span class="stolen-empty-msg">Sin avistamientos para esta placa.</span></li>';
     }
 
-    if (sightings.length === 0) {
-      setStatus(`Sin avistamientos para ${normalized}.`);
-      return;
-    }
+    showTheftOnMap(stolenReports, sightings);
+    lastSearchContext = { plate: normalized, sightings };
 
-    renderSightings(normalized, sightings);
-    const stolenCount = document.querySelectorAll("#stolen-reports-list li").length;
-    const stolenMsg = stolenCount > 0 ? ` · ${stolenCount} reporte(s) de hurto` : "";
-    setStatus(`${sightings.length} avistamiento(s) para ${normalized}${stolenMsg}.`);
+    const stolenMsg =
+      stolenReports.length > 0 ? ` · ${stolenReports.length} reporte(s) de hurto` : " · sin reportes de hurto";
+    const sightMsg =
+      sightings.length > 0
+        ? `${sightings.length} avistamiento(s)`
+        : "Sin avistamientos";
+    setStatus(`${sightMsg} para ${normalized}${stolenMsg}.`);
   } catch (err) {
     console.error(err);
     setStatus(err.message || "No se pudo conectar con la API. ¿Está ejecutándose ProyectMVP.Api?", true);
