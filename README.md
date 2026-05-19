@@ -101,6 +101,31 @@ Adaptadores en `Infrastructure/Import/`: `JsonStolenVehicleSource`, `CsvStolenVe
 
 Cada hotspot incluye `latitude`, `longitude`, `count`, `intensity` (0–1) para capas de calor o Power BI.
 
+## DeviceAgent — simulador de dispositivo LPR
+
+Simula el flujo **calle → cola SQLite → API central**:
+
+| Componente | Función |
+|------------|---------|
+| `DemoLprReader` | Lee matrícula simulada (como API local del fabricante) |
+| `SqliteSightingOutbox` | Cola local si no hay red (`data/device-outbox.db`) |
+| `CentralApiClient` | `POST /api/v1/devices/{id}/sightings/batch` con `X-Api-Key` |
+
+**Ejecutar** (con la API ya levantada en 5290):
+
+```powershell
+cd d:\ProyectoMVP\ProyectoMVP\proyectoMVP
+.\scripts\run-device-agent.ps1
+```
+
+Configuración en `src/ProyectMVP.DeviceAgent/appsettings.json`:
+
+- `SyncEnabled: false` — solo encola (demo sin GSM)
+- `Plates` — matrículas que alterna el simulador
+- `CaptureIntervalSeconds` / `SyncIntervalSeconds`
+
+Dispositivo demo: `11111111-1111-1111-1111-111111111111` / `DEMO_KEY` (seed SQL).
+
 ## Pruebas rápidas
 
 - Swagger: http://localhost:5290/swagger (botón **Authorize** con el JWT)
